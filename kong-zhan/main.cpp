@@ -8,12 +8,12 @@
 
 using namespace std;
 
-const int enemyinterval = 3000;
-const int enemymoveinterval = 75;
-const int bulletinterval = 200;
-const int bulletmoveinterval = 30;
-const int score = 25;
-const int blood = 5;
+int enemyinterval = 3000;
+int enemymoveinterval = 150;
+int bulletinterval = 150;
+int bulletmoveinterval = 25;
+int score = 10;
+int blood = 5;
 
 void gotoXY(int x, int y) //光标移动到(x,y)位置
 {
@@ -142,29 +142,40 @@ bool hittest3(int bx, int by, int x, int y)
     else return false;
 }
 
+void ClearInputBuffer() {
+    while (_kbhit()) _getch();  // 不断读取并丢弃缓冲区的按键
+}
+
+
 
 int main() {
+
     bullet* head = new bullet(-1, -1);
-    enemy* head2=new enemy(-1, -1);
-    bullet* head3 = new bullet (-1, -1);
+    enemy* head2 = new enemy(-1, -1);
+    bullet* head3 = new bullet(-1, -1);
     int i = 0, j = 0;
     int x = 25, y = 17;
-    int starttime=0, endtime=0;
+    int starttime = 0, endtime = 0;
     int enemySpawnTimer = 0;//生成敌机时间间隔
     int enemymovetime = 0;//移动敌机时间间隔
     int enemybulletmove = 0;//敌机子弹移动时间间隔
-    int num = 0;
+    int num = 0;//记录得分数
     int myblood = blood;
+    int gametime = 3;//设置游戏关卡数
+    bool gamestate = 0;//记录游戏成功还是失败
     float fps = 1000 / 80.0f;
     char input1 = 'k';
-    
+
     HideCursor();
+    cout << "开始游戏前请将控制台大小调到最大,否则会出问题，开始游戏请按空格键，将输入法调至英文";
     input1 = _getch();
     if (input1 == ' ') {
+        system("cls");
+        while (gametime--)
+        {
+            int prev_x = x, prev_y = y;
 
-        int prev_x = x, prev_y = y;
-
-        while (1) {
+            while (1) {
 
             starttime = clock();
             gotoXY(0, 33);cout << "得分: " << num;
@@ -172,11 +183,13 @@ int main() {
             if (myblood == 0)
             {
                 system("cls");cout << "游戏失败";
+                gamestate = false;
                 break;
             }
             if (num == score)
             {
                 system("cls");cout << "游戏成功";
+                gamestate = 1;
                 break;
             }
             // 只清除上一次的位置
@@ -196,107 +209,107 @@ int main() {
             if (enemySpawnTimer >= enemyinterval)
             {
                 int Y = rand() % 53 + 1;
-                enemy* ene = new enemy(0, Y);
-                ene->next = head2->next;
-                head2->next = ene;
-                gotoXY(Y, 0);printf("|");
-                enemySpawnTimer = 0;
-            }
-            
-            //移动敌机同时判断是否和我方相撞
-            enemymovetime += (endtime + (fps - endtime > 0 ? fps - endtime : 0));
-            if (enemymovetime >= enemymoveinterval)
+            enemy* ene = new enemy(0, Y);
+            ene->next = head2->next;
+            head2->next = ene;
+            gotoXY(Y, 0);printf("|");
+            enemySpawnTimer = 0;
+        }
+
+        //移动敌机同时判断是否和我方相撞
+        enemymovetime += (endtime + (fps - endtime > 0 ? fps - endtime : 0));
+        if (enemymovetime >= enemymoveinterval)
+        {
+            bool hit = false;
+            for (enemy* i = head2->next, *k = head2;i != NULL && i->ex >= 0 && i->ey >= 0;)
             {
-                bool hit = false;
-                for (enemy* i = head2->next, *k = head2;i != NULL && i->ex >= 0 && i->ey >= 0;)
+                i->bullettime += (endtime + (fps - endtime > 0 ? fps - endtime : 0));
+                if (i->bullettime >= bulletinterval)
                 {
-                    i->bullettime += (endtime + (fps - endtime > 0 ? fps - endtime : 0));
-                    if (i->bullettime >= bulletinterval)
-                    {
-                        bullet* bull = new bullet(i->ex, i->ey);
-                        bull->next = head3->next;
-                        head3->next = bull;
+                    bullet* bull = new bullet(i->ex, i->ey);
+                    bull->next = head3->next;
+                    head3->next = bull;
 
-                        gotoXY(y, x);
-                        printf("*");
-                        i->bullettime = 0;
-                    }
+                    gotoXY(y, x);
+                    printf("*");
+                    i->bullettime = 0;
+                }
 
-                    //判断是否两方相撞
-                    if (hittest2(i->ex, i->ey, prev_x, prev_y))
+                //判断是否两方相撞
+                if (hittest2(i->ex, i->ey, prev_x, prev_y))
+                {
+                    hit = true;
+                    break;
+                }
+                else
+                {
+                    if (i->move())
                     {
-                        hit = true;
-                        break;
+                        enemy* temp = i->next;
+                        gotoXY((i->ey) - 1, (i->ex) - 1);printf("   ");
+                        k->next = i->next;
+                        i = i->next;
+                        delete i;
+                        i = temp;
                     }
                     else
                     {
-                        if (i->move())
-                        {
-                            enemy* temp = i->next;
-                            gotoXY((i->ey) - 1, (i->ex) - 1);printf("   ");
-                            k->next = i->next;
-                            i = i->next;
-                            delete i;
-                            i = temp;
-                        }
-                        else
-                        {
-                            i = i->next;
-                            k = k->next;
-                        }
+                        i = i->next;
+                        k = k->next;
                     }
+                }
 
-                }
-                if (hit == true)
-                {
-                    system("cls");break;
-                }
-                enemymovetime = 0;
             }
-
-            //移动敌方飞机发射的子弹
-            enemybulletmove += (endtime + (fps - endtime > 0 ? fps - endtime : 0));
-            if (enemybulletmove >= bulletmoveinterval)
+            if (hit == true)
             {
-                for (bullet* i = head3->next, *k = head3;i != NULL && i->bx >= 0 && i->by >= 0;)
+                system("cls");break;
+            }
+            enemymovetime = 0;
+        }
+
+        //移动敌方飞机发射的子弹
+        enemybulletmove += (endtime + (fps - endtime > 0 ? fps - endtime : 0));
+        if (enemybulletmove >= bulletmoveinterval)
+        {
+            for (bullet* i = head3->next, *k = head3;i != NULL && i->bx >= 0 && i->by >= 0;)
+            {
+                if (hittest3(i->bx, i->by, prev_x, prev_y))
                 {
-                    if (hittest3(i->bx, i->by, prev_x, prev_y))
+                    bullet* temp = i->next;
+                    k->next = i->next;
+                    delete i;
+                    i = temp;
+
+                    myblood--;
+                }
+                else
+                {
+                    if (i->move2())
                     {
                         bullet* temp = i->next;
                         k->next = i->next;
                         delete i;
                         i = temp;
-
-                        myblood--;
                     }
                     else
                     {
-                        if (i->move2())
-                        {
-                            bullet* temp = i->next;
-                            k->next = i->next;
-                            delete i;
-                            i = temp;
-                        }
-                        else
-                        {
-                            i = i->next;
-                            k = k->next;
-                        }
+                        i = i->next;
+                        k = k->next;
                     }
-
                 }
-                enemybulletmove = 0;
-            }
-            
 
-            //读取键盘事件，操控飞机移动
-            if (_kbhit())
+            }
+            enemybulletmove = 0;
+        }
+
+
+        //读取键盘事件，操控飞机移动
+        if (_kbhit())
+        {
+            input1 = _getch();
+            if (input1 == 'a')
             {
-                input1 = _getch();
-                if (input1 == 'a')
-                {
-                    if (y - 3 >= 0) y--;
+                if (y - 3 >= 0) y--;
                 }
                 if (input1 == 'w')
                 {
@@ -307,7 +320,7 @@ int main() {
                     if (x + 1 <= 33) x++;
                 }
                 if (input1 == 'd')
-                {
+                {   
                     if (y + 2 <= 53) y++;
                 }
                 if (input1 == ' ')
@@ -318,6 +331,10 @@ int main() {
 
                     gotoXY(y, x);
                     printf("*");
+                }
+                if (input1 == 27)
+                {
+                    input1 = _getch();
                 }
             }
 
@@ -376,7 +393,54 @@ int main() {
                 Sleep(fps - endtime);
             }
         }
+        Sleep(2000);
+        ClearInputBuffer();
+        if (gamestate == true)
+        {
+            cout << "是否进行下一关，如果不进行，请按ESC键，如果进行，请按任意键";
+            input1 = _getch();
+            if (input1 == 27)
+            {
+                system("cls");
+                cout << "游戏结束";
+                break;
+            }
+            else
+            {
+                system("cls");
+                enemyinterval -= 500;
+                enemymoveinterval -= 25;
+                score += 5;
+                num = 0;
+                x = 25;y = 17;
+                myblood = 5;
+                bulletmoveinterval -= 5;
+                gamestate = false;
+            }
+        }
+        else
+        {
+            cout << "是否重新开始，是的话请按任意键，不是的话请按ESC键";
+            input1 = _getch();
+            if (input1 == 27)
+            {
+                system("cls");
+                cout << "游戏结束";
+                break;
+            }
+            else
+            {
+                system("cls");
+                gametime++;
+                num = 0;
+                x = 25; y = 17;
+                myblood = 5;
+                gamestate = false;
+            }
+        }
+        }
     }
+    if (gamestate == 0) cout << "游戏已经全部结束，恭喜您通过全部关卡";
     delete head;
     delete head2;
 }
